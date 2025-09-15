@@ -2,25 +2,43 @@
 
 import { useState } from 'react';
 import './AuthPage.css';
+import { supabase } from '../lib/supabaseClient'; // On importe notre client Supabase
 
-// On définit un type pour notre état, pour plus de sécurité et de clarté.
 type AuthView = 'signIn' | 'signUp';
 
 function AuthPage() {
-  // On crée notre variable d'état.
-  // 'currentView' est la valeur actuelle (initialisée à 'signIn').
-  // 'setCurrentView' est la fonction spéciale pour la modifier.
   const [currentView, setCurrentView] = useState<AuthView>('signIn');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  // On crée les fonctions qui seront appelées par les clics.
   const showSignUp = (event: React.MouseEvent) => {
-    event.preventDefault(); // Empêche le lien de recharger la page.
-    setCurrentView('signUp'); // On met à jour l'état.
+    event.preventDefault();
+    setCurrentView('signUp');
   };
 
   const showSignIn = (event: React.MouseEvent) => {
-    event.preventDefault(); // Empêche le lien de recharger la page.
-    setCurrentView('signIn'); // On met à jour l'état.
+    event.preventDefault();
+    setCurrentView('signIn');
+  };
+
+  const handleSignUp = async (event: React.MouseEvent) => {
+    event.preventDefault();
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+
+    if (error) {
+      alert('Error signing up: ' + error.message);
+    } else if (data.user) {
+      // Puisque nous avons désactivé la confirmation par email, ce message est plus direct.
+      alert('Account created successfully! You can now sign in.');
+      setEmail('');
+      setPassword('');
+      // On ramène l'utilisateur au formulaire de connexion après une inscription réussie.
+      setCurrentView('signIn');
+    }
   };
 
   return (
@@ -28,14 +46,12 @@ function AuthPage() {
       <div className="auth-container">
         <h1 className="auth-title">CogniFlow</h1>
         <p className="auth-subtitle">
-          {/* Le sous-titre change dynamiquement en fonction de l'état ! */}
           {currentView === 'signIn'
             ? 'Welcome back. Please sign in to continue.'
             : 'Create an account to get started.'}
         </p>
 
         {/* Section de Connexion (Sign In) */}
-        {/* On utilise un rendu conditionnel : cette partie s'affiche SEULEMENT SI currentView est 'signIn'. */}
         {currentView === 'signIn' && (
           <div id="signin-section">
             <div className="auth-section">
@@ -52,13 +68,29 @@ function AuthPage() {
         )}
 
         {/* Section d'Inscription (Sign Up) */}
-        {/* Cette partie s'affiche SEULEMENT SI currentView est 'signUp'. */}
         {currentView === 'signUp' && (
           <div id="signup-section">
             <div className="auth-section">
-              <input id="signup-email" type="email" placeholder="Email address" />
-              <input id="signup-password" type="password" placeholder="Choose a password" />
-              <button id="signup-button" className="button button-primary" style={{ width: '100%' }}>
+              <input
+                id="signup-email"
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                id="signup-password"
+                type="password"
+                placeholder="Choose a password (min. 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                id="signup-button"
+                className="button button-primary"
+                style={{ width: '100%' }}
+                onClick={handleSignUp}
+              >
                 Create Account
               </button>
             </div>
