@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import './AuthPage.css';
-import { supabase } from '../lib/supabaseClient'; // On importe notre client Supabase
+import { supabase } from '../lib/supabaseClient';
 
 type AuthView = 'signIn' | 'signUp';
 
@@ -10,35 +10,52 @@ function AuthPage() {
   const [currentView, setCurrentView] = useState<AuthView>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false); // Ajout d'un état de chargement pour les boutons
 
   const showSignUp = (event: React.MouseEvent) => {
     event.preventDefault();
     setCurrentView('signUp');
+    setEmail('');
+    setPassword('');
   };
 
   const showSignIn = (event: React.MouseEvent) => {
     event.preventDefault();
     setCurrentView('signIn');
+    setEmail('');
+    setPassword('');
   };
 
   const handleSignUp = async (event: React.MouseEvent) => {
     event.preventDefault();
-
+    setLoading(true); // Désactive le bouton
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
-
     if (error) {
       alert('Error signing up: ' + error.message);
     } else if (data.user) {
-      // Puisque nous avons désactivé la confirmation par email, ce message est plus direct.
       alert('Account created successfully! You can now sign in.');
+      setCurrentView('signIn');
       setEmail('');
       setPassword('');
-      // On ramène l'utilisateur au formulaire de connexion après une inscription réussie.
-      setCurrentView('signIn');
     }
+    setLoading(false); // Réactive le bouton
+  };
+
+  const handleSignIn = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    setLoading(true); // Désactive le bouton
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+    if (error) {
+      alert('Error signing in: ' + error.message);
+    }
+    // Si la connexion réussit, onAuthStateChange dans App.tsx s'occupe du reste.
+    setLoading(false); // Réactive le bouton en cas d'erreur
   };
 
   return (
@@ -51,14 +68,31 @@ function AuthPage() {
             : 'Create an account to get started.'}
         </p>
 
-        {/* Section de Connexion (Sign In) */}
         {currentView === 'signIn' && (
           <div id="signin-section">
             <div className="auth-section">
-              <input id="signin-email" type="email" placeholder="Email address" />
-              <input id="signin-password" type="password" placeholder="Password" />
-              <button id="signin-button" className="button button-primary" style={{ width: '100%' }}>
-                Sign In
+              <input 
+                id="signin-email" 
+                type="email" 
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input 
+                id="signin-password" 
+                type="password" 
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button 
+                id="signin-button" 
+                className="button button-primary" 
+                style={{ width: '100%' }}
+                onClick={handleSignIn}
+                disabled={loading} // Le bouton est désactivé pendant le chargement
+              >
+                {loading ? 'Signing In...' : 'Sign In'}
               </button>
             </div>
             <p className="toggle-auth">
@@ -67,7 +101,6 @@ function AuthPage() {
           </div>
         )}
 
-        {/* Section d'Inscription (Sign Up) */}
         {currentView === 'signUp' && (
           <div id="signup-section">
             <div className="auth-section">
@@ -90,8 +123,9 @@ function AuthPage() {
                 className="button button-primary"
                 style={{ width: '100%' }}
                 onClick={handleSignUp}
+                disabled={loading} // Le bouton est désactivé pendant le chargement
               >
-                Create Account
+                {loading ? 'Creating Account...' : 'Create Account'}
               </button>
             </div>
             <p className="toggle-auth">
@@ -101,8 +135,7 @@ function AuthPage() {
         )}
 
         <div className="auth-divider">or</div>
-
-        <button id="signin-google-button" className="button" style={{ width: '100%' }}>
+        <button id="signin-google-button" className="button" style={{ width: '100%' }} disabled={loading}>
           Sign In with Google
         </button>
       </div>
