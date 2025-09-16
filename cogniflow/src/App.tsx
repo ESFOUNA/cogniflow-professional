@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AuthPage from "./pages/AuthPage";
-import DashboardPage from "./pages/DashboardPage"; // On importe la nouvelle page
+import AppLayout from "./layout/AppLayout"; // On importe le layout
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -29,14 +29,14 @@ function App() {
   }, []);
 
   if (loading) {
-    // Un simple écran de chargement
-    return <div style={{backgroundColor: '#0A0A0F', height: '100vh'}} />;
+    return <div style={{backgroundColor: 'var(--bg-deep-space)', height: '100vh'}} />;
   }
 
-  // La logique est la même, mais on affiche un composant différent.
+  // Si l'utilisateur est connecté, on affiche le Layout avec la barre de navigation
+  // Sinon, on affiche la page d'authentification
   return (
-    <div>
-      {!session ? <AuthPage /> : <DashboardPage />}
+    <div style={{ width: '100%', height: '100%' }}>
+      {session ? <AppLayout /> : <AuthPage />}
     </div>
   );
 }
