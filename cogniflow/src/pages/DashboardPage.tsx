@@ -1,49 +1,71 @@
 // src/pages/DashboardPage.tsx
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import './DashboardPage.css';
 
-// On définit un type pour nos objets "Ritual" pour être clair et précis.
 type Ritual = {
   id: number;
   name: string;
-  description: string;
+  description: string | null;
 };
 
-// Voici nos données "en dur". Plus tard, elles viendront de Supabase.
-const mockRituals: Ritual[] = [
-  {
-    id: 1,
-    name: '🚀 Morning Focus',
-    description: 'Prepare the workspace for a deep work session on the main project.',
-  },
-  {
-    id: 2,
-    name: '📚 Learning Hour',
-    description: 'Open all necessary resources to study a new technology.',
-  },
-  {
-    id: 3,
-    name: '✉️ Email Triage',
-    description: 'A quick ritual to process the inbox and nothing else.',
-  }
-];
-
 function DashboardPage() {
+  const [rituals, setRituals] = useState<Ritual[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRituals = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('rituals')
+          .select('id, name, description')
+          .eq('user_id', user.id);
+        if (error) {
+          console.error('Error fetching rituals:', error);
+        } else if (data) {
+          setRituals(data);
+        }
+      }
+      setLoading(false);
+    };
+    fetchRituals();
+  }, []);
+
+  // On ajoute la fonction pour se déconnecter
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return <div className="dashboard-page"><p>Loading rituals...</p></div>;
+  }
+
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <h1>Launch a Ritual</h1>
         <p>Choose a ritual to prepare your workspace and start a focus session.</p>
+        {/* On ajoute le bouton de déconnexion ici */}
+        <button 
+          onClick={handleSignOut} 
+          style={{marginTop: '10px', cursor: 'pointer', padding: '8px 12px'}}
+        >
+          Sign Out
+        </button>
       </header>
 
       <div className="rituals-container">
-        {/* On utilise .map() pour transformer notre tableau de données en une liste de composants JSX. */}
-        {mockRituals.map((ritual) => (
-          // La 'key' est très importante pour que React gère efficacement la liste.
-          <div key={ritual.id} className="ritual-card" onClick={() => alert(`Launching ${ritual.name}...`)}>
-            <h3>{ritual.name}</h3>
-            <p>{ritual.description}</p>
-          </div>
-        ))}
+        {rituals.length === 0 ? (
+          <p>You don't have any rituals yet. Go to Settings to create one!</p>
+        ) : (
+          rituals.map((ritual) => (
+            <div key={ritual.id} className="ritual-card" onClick={() => alert(`Launching ${ritual.name}...`)}>
+              <h3>{ritual.name}</h3>
+              {ritual.description && <p>{ritual.description}</p>}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
