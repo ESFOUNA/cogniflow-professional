@@ -10,7 +10,6 @@ function AuthPage() {
   const [currentView, setCurrentView] = useState<AuthView>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false); // Ajout d'un état de chargement pour les boutons
 
   const showSignUp = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -28,7 +27,6 @@ function AuthPage() {
 
   const handleSignUp = async (event: React.MouseEvent) => {
     event.preventDefault();
-    setLoading(true); // Désactive le bouton
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
@@ -41,12 +39,10 @@ function AuthPage() {
       setEmail('');
       setPassword('');
     }
-    setLoading(false); // Réactive le bouton
   };
-
+  
   const handleSignIn = async (event: React.MouseEvent) => {
     event.preventDefault();
-    setLoading(true); // Désactive le bouton
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
@@ -54,8 +50,16 @@ function AuthPage() {
     if (error) {
       alert('Error signing in: ' + error.message);
     }
-    // Si la connexion réussit, onAuthStateChange dans App.tsx s'occupe du reste.
-    setLoading(false); // Réactive le bouton en cas d'erreur
+  };
+
+  // NOUVELLE FONCTION pour la connexion Google
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    });
+    if (error) {
+      alert('Error with Google sign-in: ' + error.message);
+    }
   };
 
   return (
@@ -90,9 +94,8 @@ function AuthPage() {
                 className="button button-primary" 
                 style={{ width: '100%' }}
                 onClick={handleSignIn}
-                disabled={loading} // Le bouton est désactivé pendant le chargement
               >
-                {loading ? 'Signing In...' : 'Sign In'}
+                Sign In
               </button>
             </div>
             <p className="toggle-auth">
@@ -123,9 +126,8 @@ function AuthPage() {
                 className="button button-primary"
                 style={{ width: '100%' }}
                 onClick={handleSignUp}
-                disabled={loading} // Le bouton est désactivé pendant le chargement
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                Create Account
               </button>
             </div>
             <p className="toggle-auth">
@@ -135,7 +137,14 @@ function AuthPage() {
         )}
 
         <div className="auth-divider">or</div>
-        <button id="signin-google-button" className="button" style={{ width: '100%' }} disabled={loading}>
+
+        {/* MISE À JOUR : On connecte notre nouvelle fonction au bouton */}
+        <button 
+          id="signin-google-button" 
+          className="button" 
+          style={{ width: '100%' }}
+          onClick={handleGoogleSignIn}
+        >
           Sign In with Google
         </button>
       </div>
