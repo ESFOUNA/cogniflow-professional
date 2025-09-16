@@ -2,29 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import AuthPage from "./pages/AuthPage";
+import DashboardPage from "./pages/DashboardPage"; // On importe la nouvelle page
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-
-// Le composant Dashboard pour les utilisateurs connectés
-function Dashboard({ session }: { session: Session }) {
-  return (
-    <div style={{ padding: '20px', color: 'white' }}>
-      <h1>Welcome, you are logged in!</h1>
-      <p>Votre email est : {session.user.email}</p>
-      <button 
-        onClick={() => supabase.auth.signOut()}
-        style={{ padding: '10px', cursor: 'pointer' }}
-      >
-        Sign Out
-      </button>
-    </div>
-  );
-}
-
-// Le composant pour les utilisateurs non connectés
-function LandingPage() {
-  return <AuthPage />;
-}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -49,12 +29,14 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div style={{color: 'white', padding: '20px'}}>Loading...</div>;
+    // Un simple écran de chargement
+    return <div style={{backgroundColor: '#0A0A0F', height: '100vh'}} />;
   }
 
+  // La logique est la même, mais on affiche un composant différent.
   return (
     <div>
-      {session ? <Dashboard session={session} /> : <LandingPage />}
+      {!session ? <AuthPage /> : <DashboardPage />}
     </div>
   );
 }
