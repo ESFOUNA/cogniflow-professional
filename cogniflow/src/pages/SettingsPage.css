@@ -1,0 +1,104 @@
+/* src/pages/SettingsPage.css */
+
+.settings-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 2fr; 
+    gap: 32px; 
+}
+
+/* Pour les petits écrans, on passe à une seule colonne */
+@media (max-width: 900px) { 
+    .settings-grid { 
+        grid-template-columns: 1fr; 
+    } 
+}
+
+.settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.settings-section {
+    background-color: var(--bg-station);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+}
+
+.settings-section h3 { 
+    margin-top: 0; 
+    margin-bottom: 16px; 
+    font-size: 1.2rem; 
+    color: var(--text-primary);
+}
+
+.form-row { 
+    display: flex; 
+    gap: 10px; 
+    align-items: center; 
+    margin-bottom: 10px; 
+}
+.form-row input, .form-row select {
+    flex-grow: 1; /* Permet aux inputs de prendre tout l'espace */
+}
+
+.form-group { 
+    width: 100%; 
+    margin-bottom: 10px;
+}
+
+/* Affichage de la liste des rituels */
+#rituals-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ritual-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ritual-header-title h3 { 
+    font-size: 1.1rem; 
+    margin: 0; 
+}
+.ritual-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.ritual-header-buttons { 
+    display: flex; 
+    align-items: center; 
+    gap: 4px; 
+}
+
+.action-item {
+    background-color: var(--bg-space);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition-fast);
+    font-size: 0.95rem;
+}
+.action-item:hover { 
+    background-color: var(--border-color); 
+}
+.action-item-info { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    color: var(--text-primary);
+}
+.action-controls { 
+    display: flex; 
+    gap: 4px; 
+}
