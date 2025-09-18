@@ -1,28 +1,31 @@
 // src/pages/SettingsPage.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import EditRitualModal from '../components/EditRitualModal'; // 1. ON IMPORTE LA NOUVELLE MODALE
 import './SettingsPage.css';
 
-// Le type Ritual reste le même, mais on s'assure qu'il correspond à notre DB
 type Ritual = {
     id: number;
     name: string;
     description: string | null;
-    // Pour l'instant, les actions ne sont pas dans notre base de données,
-    // donc nous allons les laisser vides.
     actions?: []; 
 };
 
 function SettingsPage() {
     // --- ÉTATS (STATES) ---
-    // Pour stocker la liste des rituels de l'utilisateur
+    // Pas de changement ici
     const [rituals, setRituals] = useState<Ritual[]>([]);
     const [loading, setLoading] = useState(true);
-    // Pour les champs du formulaire de création de rituel
     const [newRitualName, setNewRitualName] = useState('');
     const [newRitualDescription, setNewRitualDescription] = useState('');
+    
+    // 2. ON AJOUTE UN NOUVEL ÉTAT POUR GÉRER LA MODALE
+    // S'il est 'null', la modale est cachée.
+    // S'il contient un rituel, la modale s'affiche avec les données de ce rituel.
+    const [editingRitual, setEditingRitual] = useState<Ritual | null>(null);
 
     // --- FONCTION POUR ALLER CHERCHER LES DONNÉES ---
+    // Pas de changement ici
     const fetchRituals = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -30,7 +33,7 @@ function SettingsPage() {
                 .from('rituals')
                 .select('id, name, description')
                 .eq('user_id', user.id)
-                .order('created_at', { ascending: true }); // On trie par date de création
+                .order('created_at', { ascending: true });
 
             if (error) {
                 console.error('Error fetching rituals:', error);
@@ -42,19 +45,19 @@ function SettingsPage() {
     };
 
     // --- EFFET DE BORD (useEffect) ---
-    // Cette fonction s'exécute une seule fois au chargement de la page
+    // Pas de changement ici
     useEffect(() => {
         fetchRituals();
-    }, []); // Le tableau vide signifie "exécute-moi une seule fois"
+    }, []);
 
     // --- FONCTIONS DE GESTION (HANDLERS) ---
+    // Pas de changement sur les fonctions existantes
     const handleCreateRitual = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || !newRitualName.trim()) {
             alert('Ritual name cannot be empty.');
             return;
         }
-
         const { error } = await supabase
             .from('rituals')
             .insert({ 
@@ -62,29 +65,24 @@ function SettingsPage() {
                 name: newRitualName,
                 description: newRitualDescription || null 
             });
-
         if (error) {
             alert('Error creating ritual: ' + error.message);
         } else {
-            // Succès ! On vide les champs et on rafraîchit la liste
             setNewRitualName('');
             setNewRitualDescription('');
-            fetchRituals(); // Très important : on met à jour la liste !
+            fetchRituals();
         }
     };
 
     const handleDeleteRitual = async (ritualId: number) => {
-        // On demande confirmation avant une action destructive
         if (window.confirm('Are you sure you want to delete this ritual?')) {
             const { error } = await supabase
                 .from('rituals')
                 .delete()
                 .eq('id', ritualId);
-            
             if (error) {
                 alert('Error deleting ritual: ' + error.message);
             } else {
-                // Succès ! On rafraîchit la liste
                 fetchRituals();
             }
         }
@@ -102,7 +100,7 @@ function SettingsPage() {
             </header>
 
             <div className="settings-grid">
-                {/* --- COLONNE DE CRÉATION --- */}
+                {/* --- COLONNE DE CRÉATION --- (Pas de changement ici) */}
                 <div className="settings-column">
                     <div className="settings-section">
                         <h3>Create a New Ritual</h3>
@@ -129,7 +127,6 @@ function SettingsPage() {
 
                     <div className="settings-section">
                         <h3>Add an Action</h3>
-                        {/* La logique pour ajouter des actions sera dans une prochaine tâche */}
                         <div className="form-row">
                             <select disabled>
                                 <option>Open URL</option>
@@ -166,7 +163,14 @@ function SettingsPage() {
                                             </div>
                                             <div className="ritual-header-buttons">
                                                 <button className="button-icon" title="Duplicate" disabled>Copy</button>
-                                                <button className="button-icon" title="Edit" disabled>Edit</button>
+                                                {/* 3. ON ACTIVE LE BOUTON "EDIT" ET ON LUI DONNE UNE ACTION */}
+                                                <button 
+                                                    onClick={() => setEditingRitual(ritual)} 
+                                                    className="button-icon" 
+                                                    title="Edit"
+                                                >
+                                                    Edit
+                                                </button>
                                                 <button onClick={() => handleDeleteRitual(ritual.id)} className="button-icon" title="Delete">Delete</button>
                                             </div>
                                         </div>
@@ -177,6 +181,19 @@ function SettingsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* 4. ON AJOUTE LA LOGIQUE D'AFFICHAGE DE LA MODALE */}
+            {/* Si 'editingRitual' contient un rituel, on affiche le composant Modal */}
+            {editingRitual && (
+                <EditRitualModal
+                    ritualToEdit={editingRitual}
+                    onClose={() => setEditingRitual(null)} // La fonction pour fermer la modale
+                    onSave={() => {
+                        setEditingRitual(null); // On ferme la modale
+                        fetchRituals();      // Et on rafraîchit la liste pour voir les changements
+                    }}
+                />
+            )}
         </div>
     );
 }
