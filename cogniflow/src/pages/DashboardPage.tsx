@@ -7,6 +7,7 @@ type Ritual = {
   id: number;
   name: string;
   description: string | null;
+  actions: { type: string, target: string }[]; 
 };
 
 function DashboardPage() {
@@ -19,7 +20,7 @@ function DashboardPage() {
       if (user) {
         const { data, error } = await supabase
           .from('rituals')
-          .select('id, name, description')
+          .select('id, name, description, actions')
           .eq('user_id', user.id);
         if (error) {
           console.error('Error fetching rituals:', error);
@@ -59,12 +60,16 @@ function DashboardPage() {
         {rituals.length === 0 ? (
           <p>You don't have any rituals yet. Go to Settings to create one!</p>
         ) : (
-          rituals.map((ritual) => (
-            <div key={ritual.id} className="ritual-card" onClick={() => alert(`Launching ${ritual.name}...`)}>
-              <h3>{ritual.name}</h3>
-              {ritual.description && <p>{ritual.description}</p>}
-            </div>
-          ))
+            rituals.map((ritual) => (
+                <div key={ritual.id} className="ritual-card" onClick={() => alert(`Launching ${ritual.name}...`)}>
+                    <h3>{ritual.name}</h3>
+                    {ritual.description && <p>{ritual.description}</p>}
+                    {/* On ajoute une ligne pour le nombre d'actions */}
+                    <p style={{marginTop: '10px', fontSize: '0.8em', color: 'var(--text-secondary)'}}>
+                        {ritual.actions.length} Action(s)
+                    </p>
+                </div>
+            ))
         )}
       </div>
     </div>

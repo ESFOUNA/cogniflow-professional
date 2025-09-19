@@ -8,6 +8,7 @@ type Ritual = {
     id: number;
     name: string;
     description: string | null;
+    actions: { type: string, target: string }[];
 };
 
 // On définit les "props" que notre modale va recevoir
