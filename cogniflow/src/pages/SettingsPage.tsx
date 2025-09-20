@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import EditRitualModal from '../components/EditRitualModal';
 import './SettingsPage.css';
 
-// 1. MISE À JOUR DU TYPE POUR INCLURE LES ACTIONS
+// --- TYPES ---
+// Type plus précis pour nos Actions
 type Action = {
-    type: string;
+    type: 'open_url' | 'open_app' | 'open_folder' | 'open_file' | 'delay';
     target: string;
 };
 
@@ -25,13 +26,17 @@ function SettingsPage() {
     const [newRitualDescription, setNewRitualDescription] = useState('');
     const [editingRitual, setEditingRitual] = useState<Ritual | null>(null);
 
+    // NOUVEAUX ÉTATS pour le formulaire d'ajout d'action
+    const [actionType, setActionType] = useState<Action['type']>('open_url');
+    const [actionTarget, setActionTarget] = useState('');
+    const [selectedRitualId, setSelectedRitualId] = useState<string>('');
+
     // --- FONCTION POUR ALLER CHERCHER LES DONNÉES ---
     const fetchRituals = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             const { data, error } = await supabase
                 .from('rituals')
-                // 2. MISE À JOUR DE LA REQUÊTE
                 .select('id, name, description, actions') // On récupère aussi la colonne 'actions'
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: true });
@@ -89,6 +94,41 @@ function SettingsPage() {
         }
     };
 
+    // --- NOUVELLE FONCTION : handleAddAction ---
+    const handleAddAction = async () => {
+        if (!selectedRitualId || !actionTarget.trim()) {
+            alert('Please select a ritual and provide a target.');
+            return;
+        }
+
+        // 1. Trouver le rituel à mettre à jour dans notre état local
+        const ritualToUpdate = rituals.find(r => r.id === parseInt(selectedRitualId));
+        if (!ritualToUpdate) return;
+
+        // 2. Créer la nouvelle action
+        const newAction: Action = {
+            type: actionType,
+            target: actionTarget,
+        };
+
+        // 3. Préparer le nouveau tableau d'actions
+        const updatedActions = [...ritualToUpdate.actions, newAction];
+
+        // 4. Envoyer la mise à jour à Supabase
+        const { error } = await supabase
+            .from('rituals')
+            .update({ actions: updatedActions }) // On met à jour la colonne 'actions'
+            .eq('id', selectedRitualId);
+
+        if (error) {
+            alert('Error adding action: ' + error.message);
+        } else {
+            // 5. Succès ! On vide les champs et on rafraîchit la liste
+            setActionTarget('');
+            fetchRituals();
+        }
+    };
+
     if (loading) {
         return <div className="dashboard-page"><p>Loading settings...</p></div>;
     }
@@ -126,23 +166,44 @@ function SettingsPage() {
                         </button>
                     </div>
 
+                    {/* SECTION "ADD AN ACTION" - MISE À JOUR COMPLÈTE */}
                     <div className="settings-section">
                         <h3>Add an Action</h3>
                         <div className="form-row">
-                            <select disabled>
-                                <option>Open URL</option>
+                            <select 
+                                value={actionType}
+                                onChange={(e) => setActionType(e.target.value as Action['type'])}
+                            >
+                                <option value="open_url">Open URL</option>
+                                <option value="open_app">Launch App</option>
+                                <option value="open_folder">Open Folder</option>
+                                <option value="open_file">Open File</option>
+                                <option value="delay">Add Delay (ms)</option>
                             </select>
-                            <input type="text" placeholder="Target..." disabled />
+                            <input 
+                                type="text" 
+                                placeholder="Target (URL, path, or ms)..."
+                                value={actionTarget}
+                                onChange={(e) => setActionTarget(e.target.value)}
+                            />
                         </div>
                         <div className="form-row">
-                            <select title="Add to which ritual?" disabled={rituals.length === 0}>
-                                {rituals.length === 0 ? (
-                                    <option>-- Create a ritual first --</option>
-                                ) : (
-                                    rituals.map(r => <option key={r.id} value={r.id}>{r.name}</option>)
-                                )}
+                            <select 
+                                title="Add to which ritual?" 
+                                value={selectedRitualId}
+                                onChange={(e) => setSelectedRitualId(e.target.value)}
+                                disabled={rituals.length === 0}
+                            >
+                                <option value="">-- Select Ritual --</option>
+                                {rituals.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                             </select>
-                            <button className="button button-primary" disabled>Add Action</button>
+                            <button 
+                                onClick={handleAddAction} 
+                                className="button button-primary"
+                                disabled={rituals.length === 0}
+                            >
+                                Add Action
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -175,7 +236,7 @@ function SettingsPage() {
                                             </div>
                                         </div>
                                         
-                                        {/* 3. MISE À JOUR DE L'AFFICHAGE DES ACTIONS */}
+                                        {/* AFFICHAGE DES ACTIONS */}
                                         {ritual.actions.length === 0 ? (
                                             <p style={{color: 'var(--text-secondary)', fontSize: '0.9em', paddingLeft: '10px'}}>No actions defined.</p>
                                         ) : (
