@@ -129,6 +129,35 @@ function SettingsPage() {
         }
     };
 
+    // --- NOUVELLE FONCTION : handleDeleteAction ---
+    const handleDeleteAction = async (ritualId: number, actionIndex: number) => {
+        // 1. Demander confirmation
+        if (!window.confirm('Are you sure you want to delete this action?')) {
+            return;
+        }
+
+        // 2. Trouver le rituel concerné
+        const ritualToUpdate = rituals.find(r => r.id === ritualId);
+        if (!ritualToUpdate) return;
+
+        // 3. Créer une nouvelle liste d'actions en filtrant celle à supprimer
+        // La méthode filter() crée un nouveau tableau avec tous les éléments qui passent le test.
+        const updatedActions = ritualToUpdate.actions.filter((_, index) => index !== actionIndex);
+
+        // 4. Envoyer la mise à jour à Supabase
+        const { error } = await supabase
+            .from('rituals')
+            .update({ actions: updatedActions })
+            .eq('id', ritualId);
+
+        if (error) {
+            alert('Error deleting action: ' + error.message);
+        } else {
+            // 5. Succès ! On rafraîchit la liste
+            fetchRituals();
+        }
+    };
+
     if (loading) {
         return <div className="dashboard-page"><p>Loading settings...</p></div>;
     }
@@ -248,7 +277,13 @@ function SettingsPage() {
                                                     </div>
                                                     <div className="action-controls">
                                                         <button className="button-icon" title="Edit Action" disabled>Edit</button>
-                                                        <button className="button-icon" title="Delete Action" disabled>X</button>
+                                                        <button 
+                                                            onClick={() => handleDeleteAction(ritual.id, index)} 
+                                                            className="button-icon" 
+                                                            title="Delete Action"
+                                                        >
+                                                            X
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))
