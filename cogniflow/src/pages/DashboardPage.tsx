@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import './DashboardPage.css';
 
-type Ritual = {
-  id: number;
-  name: string;
-  description: string | null;
-  actions: { type: string, target: string }[]; 
+type Action = { type: string; target: string };
+type Ritual = { id: number; name: string; description: string | null; actions: Action[] };
+
+// NOUVEAU : On définit les props que le composant reçoit
+type DashboardPageProps = {
+    onLaunchRitual: (ritual: Ritual) => void;
 };
 
-function DashboardPage() {
+function DashboardPage({ onLaunchRitual }: DashboardPageProps) {
   const [rituals, setRituals] = useState<Ritual[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,10 +62,10 @@ function DashboardPage() {
           <p>You don't have any rituals yet. Go to Settings to create one!</p>
         ) : (
             rituals.map((ritual) => (
-                <div key={ritual.id} className="ritual-card" onClick={() => alert(`Launching ${ritual.name}...`)}>
+                // MISE À JOUR : Le onClick appelle maintenant la fonction du parent
+                <div key={ritual.id} className="ritual-card" onClick={() => onLaunchRitual(ritual)}>
                     <h3>{ritual.name}</h3>
                     {ritual.description && <p>{ritual.description}</p>}
-                    {/* On ajoute une ligne pour le nombre d'actions */}
                     <p style={{marginTop: '10px', fontSize: '0.8em', color: 'var(--text-secondary)'}}>
                         {ritual.actions.length} Action(s)
                     </p>

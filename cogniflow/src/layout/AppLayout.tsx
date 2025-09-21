@@ -2,11 +2,19 @@
 import { useState } from 'react';
 import DashboardPage from "../pages/DashboardPage";
 import SettingsPage from "../pages/SettingsPage";
+import LaunchSequencePage from '../pages/LaunchSequencePage'; // On importe la nouvelle page
 import { supabase } from '../lib/supabaseClient';
+
+// On définit les types pour un rituel
+type Action = { type: string; target: string };
+type Ritual = { id: number; name: string; description: string | null; actions: Action[] };
 
 function AppLayout() {
     // État pour savoir quelle page afficher (Accueil ou Paramètres)
     const [currentPage, setCurrentPage] = useState<'dashboard' | 'settings'>('dashboard');
+    
+    // NOUVEL ÉTAT : Pour savoir quel rituel est en train d'être lancé
+    const [executingRitual, setExecutingRitual] = useState<Ritual | null>(null);
 
     // Note: Dans une application réelle, nous utiliserions React Router, mais pour Tauri,
     // la gestion d'état simple est suffisante.
@@ -18,13 +26,24 @@ function AppLayout() {
     const renderPage = () => {
         switch (currentPage) {
             case 'dashboard':
-                return <DashboardPage />;
+                return <DashboardPage onLaunchRitual={setExecutingRitual} />;
             case 'settings':
                 return <SettingsPage />;
             default:
-                return <DashboardPage />;
+                return <DashboardPage onLaunchRitual={setExecutingRitual} />;
         }
     };
+
+    // Si un rituel est en cours d'exécution, on affiche la page de lancement
+    if (executingRitual) {
+        return (
+            <LaunchSequencePage 
+                ritual={executingRitual}
+                // Quand la séquence est finie, on revient au dashboard
+                onComplete={() => setExecutingRitual(null)} 
+            />
+        );
+    }
 
     return (
         <div className="app-layout" style={{ display: 'flex', width: '100%', height: '100%' }}>

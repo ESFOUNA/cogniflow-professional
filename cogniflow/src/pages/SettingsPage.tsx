@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import EditRitualModal from '../components/EditRitualModal';
+import EditActionModal from '../components/EditActionModal'; // NOUVEAU
 import './SettingsPage.css';
+import { ask } from '@tauri-apps/api/dialog';
+
 
 // --- TYPES ---
 // Type plus précis pour nos Actions
@@ -18,6 +21,13 @@ type Ritual = {
     actions: Action[]; // Le type est maintenant un tableau d'objets Action
 };
 
+// NOUVEAU type pour stocker les informations de l'action à éditer
+type EditingActionInfo = {
+    ritualId: number;
+    actionIndex: number;
+    action: Action;
+};
+
 function SettingsPage() {
     // --- ÉTATS (STATES) ---
     const [rituals, setRituals] = useState<Ritual[]>([]);
@@ -30,6 +40,9 @@ function SettingsPage() {
     const [actionType, setActionType] = useState<Action['type']>('open_url');
     const [actionTarget, setActionTarget] = useState('');
     const [selectedRitualId, setSelectedRitualId] = useState<string>('');
+    
+    // NOUVEL ÉTAT pour la modale d'action
+    const [editingAction, setEditingAction] = useState<EditingActionInfo | null>(null);
 
     // --- FONCTION POUR ALLER CHERCHER LES DONNÉES ---
     const fetchRituals = async () => {
@@ -80,18 +93,57 @@ function SettingsPage() {
         }
     };
 
+    // NOUVELLE FONCTION pour sauvegarder l'action modifiée
+    const handleSaveAction = async (updatedAction: Action) => {
+        if (!editingAction) return;
+
+        const { ritualId, actionIndex } = editingAction;
+
+        const ritualToUpdate = rituals.find(r => r.id === ritualId);
+        if (!ritualToUpdate) return;
+
+        // On crée une copie du tableau d'actions et on remplace l'ancienne action par la nouvelle
+        const updatedActions = [...ritualToUpdate.actions];
+        updatedActions[actionIndex] = updatedAction;
+        
+        const { error } = await supabase
+            .from('rituals')
+            .update({ actions: updatedActions })
+            .eq('id', ritualId);
+
+        if (error) {
+            alert('Error updating action: ' + error.message);
+        } else {
+            setEditingAction(null); // On ferme la modale
+            fetchRituals();      // On rafraîchit la liste
+        }
+    };
+
     const handleDeleteRitual = async (ritualId: number) => {
-        if (window.confirm('Are you sure you want to delete this ritual?')) {
+        // On utilise la fonction 'ask' de Tauri, qui est asynchrone
+        const confirmed = await ask(
+            'Are you sure you want to delete this ritual? This action cannot be undone.', 
+            {
+                title: 'Confirm Deletion',
+                type: 'warning' // Affiche une icône d'avertissement
+            }
+        );
+    
+        // La fonction 'ask' renvoie 'true' si l'utilisateur clique sur OK, et 'false' sinon.
+        // On ne continue que si la confirmation est 'true'.
+        if (confirmed) {
             const { error } = await supabase
                 .from('rituals')
                 .delete()
                 .eq('id', ritualId);
+            
             if (error) {
                 alert('Error deleting ritual: ' + error.message);
             } else {
-                fetchRituals();
+                fetchRituals(); // On rafraîchit la liste
             }
         }
+        // Si 'confirmed' est false, la fonction s'arrête ici et ne fait rien.
     };
 
     // --- NOUVELLE FONCTION : handleAddAction ---
@@ -131,33 +183,35 @@ function SettingsPage() {
 
     // --- NOUVELLE FONCTION : handleDeleteAction ---
     const handleDeleteAction = async (ritualId: number, actionIndex: number) => {
-        // 1. Demander confirmation
-        if (!window.confirm('Are you sure you want to delete this action?')) {
-            return;
-        }
-
-        // 2. Trouver le rituel concerné
-        const ritualToUpdate = rituals.find(r => r.id === ritualId);
-        if (!ritualToUpdate) return;
-
-        // 3. Créer une nouvelle liste d'actions en filtrant celle à supprimer
-        // La méthode filter() crée un nouveau tableau avec tous les éléments qui passent le test.
-        const updatedActions = ritualToUpdate.actions.filter((_, index) => index !== actionIndex);
-
-        // 4. Envoyer la mise à jour à Supabase
-        const { error } = await supabase
-            .from('rituals')
-            .update({ actions: updatedActions })
-            .eq('id', ritualId);
-
-        if (error) {
-            alert('Error deleting action: ' + error.message);
-        } else {
-            // 5. Succès ! On rafraîchit la liste
-            fetchRituals();
+        // On utilise la fonction 'ask' de Tauri pour la confirmation
+        const confirmed = await ask(
+            'Are you sure you want to delete this action?', 
+            {
+                title: 'Confirm Action Deletion',
+                type: 'warning'
+            }
+        );
+    
+        // On ne continue que si l'utilisateur a cliqué sur OK
+        if (confirmed) {
+            const ritualToUpdate = rituals.find(r => r.id === ritualId);
+            if (!ritualToUpdate) return;
+    
+            const updatedActions = ritualToUpdate.actions.filter((_, index) => index !== actionIndex);
+    
+            const { error } = await supabase
+                .from('rituals')
+                .update({ actions: updatedActions })
+                .eq('id', ritualId);
+            
+            if (error) {
+                alert('Error deleting action: ' + error.message);
+            } else {
+                fetchRituals(); // On rafraîchit la liste
+            }
         }
     };
-
+    
     if (loading) {
         return <div className="dashboard-page"><p>Loading settings...</p></div>;
     }
@@ -276,7 +330,13 @@ function SettingsPage() {
                                                         <span>{action.target}</span>
                                                     </div>
                                                     <div className="action-controls">
-                                                        <button className="button-icon" title="Edit Action" disabled>Edit</button>
+                                                        <button 
+                                                            onClick={() => setEditingAction({ ritualId: ritual.id, actionIndex: index, action: action })}
+                                                            className="button-icon" 
+                                                            title="Edit Action"
+                                                        >
+                                                            Edit
+                                                        </button>
                                                         <button 
                                                             onClick={() => handleDeleteAction(ritual.id, index)} 
                                                             className="button-icon" 
@@ -305,6 +365,15 @@ function SettingsPage() {
                         setEditingRitual(null);
                         fetchRituals();
                     }}
+                />
+            )}
+
+            {/* NOUVEAU : Modale pour éditer une ACTION */}
+            {editingAction && (
+                <EditActionModal 
+                    actionToEdit={editingAction.action}
+                    onClose={() => setEditingAction(null)}
+                    onSave={handleSaveAction}
                 />
             )}
         </div>
