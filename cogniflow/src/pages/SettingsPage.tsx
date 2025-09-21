@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import EditRitualModal from '../components/EditRitualModal';
+import EditActionModal from '../components/EditActionModal'; // NOUVEAU
 import './SettingsPage.css';
 
 // --- TYPES ---
@@ -18,6 +19,13 @@ type Ritual = {
     actions: Action[]; // Le type est maintenant un tableau d'objets Action
 };
 
+// NOUVEAU type pour stocker les informations de l'action à éditer
+type EditingActionInfo = {
+    ritualId: number;
+    actionIndex: number;
+    action: Action;
+};
+
 function SettingsPage() {
     // --- ÉTATS (STATES) ---
     const [rituals, setRituals] = useState<Ritual[]>([]);
@@ -30,6 +38,9 @@ function SettingsPage() {
     const [actionType, setActionType] = useState<Action['type']>('open_url');
     const [actionTarget, setActionTarget] = useState('');
     const [selectedRitualId, setSelectedRitualId] = useState<string>('');
+    
+    // NOUVEL ÉTAT pour la modale d'action
+    const [editingAction, setEditingAction] = useState<EditingActionInfo | null>(null);
 
     // --- FONCTION POUR ALLER CHERCHER LES DONNÉES ---
     const fetchRituals = async () => {
@@ -77,6 +88,32 @@ function SettingsPage() {
             setNewRitualName('');
             setNewRitualDescription('');
             fetchRituals();
+        }
+    };
+
+    // NOUVELLE FONCTION pour sauvegarder l'action modifiée
+    const handleSaveAction = async (updatedAction: Action) => {
+        if (!editingAction) return;
+
+        const { ritualId, actionIndex } = editingAction;
+
+        const ritualToUpdate = rituals.find(r => r.id === ritualId);
+        if (!ritualToUpdate) return;
+
+        // On crée une copie du tableau d'actions et on remplace l'ancienne action par la nouvelle
+        const updatedActions = [...ritualToUpdate.actions];
+        updatedActions[actionIndex] = updatedAction;
+        
+        const { error } = await supabase
+            .from('rituals')
+            .update({ actions: updatedActions })
+            .eq('id', ritualId);
+
+        if (error) {
+            alert('Error updating action: ' + error.message);
+        } else {
+            setEditingAction(null); // On ferme la modale
+            fetchRituals();      // On rafraîchit la liste
         }
     };
 
@@ -276,7 +313,13 @@ function SettingsPage() {
                                                         <span>{action.target}</span>
                                                     </div>
                                                     <div className="action-controls">
-                                                        <button className="button-icon" title="Edit Action" disabled>Edit</button>
+                                                        <button 
+                                                            onClick={() => setEditingAction({ ritualId: ritual.id, actionIndex: index, action: action })}
+                                                            className="button-icon" 
+                                                            title="Edit Action"
+                                                        >
+                                                            Edit
+                                                        </button>
                                                         <button 
                                                             onClick={() => handleDeleteAction(ritual.id, index)} 
                                                             className="button-icon" 
@@ -305,6 +348,15 @@ function SettingsPage() {
                         setEditingRitual(null);
                         fetchRituals();
                     }}
+                />
+            )}
+
+            {/* NOUVEAU : Modale pour éditer une ACTION */}
+            {editingAction && (
+                <EditActionModal 
+                    actionToEdit={editingAction.action}
+                    onClose={() => setEditingAction(null)}
+                    onSave={handleSaveAction}
                 />
             )}
         </div>
