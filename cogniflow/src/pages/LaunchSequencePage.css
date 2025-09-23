@@ -1,0 +1,110 @@
+.launch-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-deep-space);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.launch-container {
+    background-color: var(--bg-station);
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-width: 550px;
+    text-align: center;
+}
+
+.launch-container h2 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: var(--text-primary);
+}
+
+#launch-actions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.launch-action-item {
+    padding: 12px 15px;
+    background-color: var(--bg-space);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    opacity: 0.5;
+    border-left: 3px solid var(--border-color);
+    transition: all 0.3s ease-in-out;
+}
+
+.launch-action-item.executing {
+    opacity: 1;
+    transform: scale(1.02);
+    background-color: var(--border-color);
+    border-left-color: var(--accent-glow);
+}
+
+.launch-action-item.done {
+    opacity: 0.6;
+}
+
+.launch-action-item.done .action-text {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+}
+
+.action-status {
+    font-size: 0.8em;
+    width: 70px; /* Pour aligner le texte */
+    flex-shrink: 0;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.launch-action-item.executing .action-status {
+    color: var(--accent-glow);
+    font-weight: bold;
+}
+
+.launch-action-item.done .action-status {
+    color: var(--success);
+}
+
+.action-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-type {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.action-target {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
