@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import EditRitualModal from '../components/EditRitualModal';
+import EditActionModal from '../components/EditActionModal'; // Import the new modal
 import './SettingsPage.css';
 
 // --- TYPES ---
@@ -18,6 +19,12 @@ type Ritual = {
     actions: Action[]; // Le type est maintenant un tableau d'objets Action
 };
 
+type EditingActionInfo = {
+    ritualId: number;
+    actionIndex: number;
+    action: Action;
+};
+
 function SettingsPage() {
     // --- ÉTATS (STATES) ---
     const [rituals, setRituals] = useState<Ritual[]>([]);
@@ -30,6 +37,9 @@ function SettingsPage() {
     const [actionType, setActionType] = useState<Action['type']>('open_url');
     const [actionTarget, setActionTarget] = useState('');
     const [selectedRitualId, setSelectedRitualId] = useState<string>('');
+    
+    // Nouvel état pour la modale d'action
+    const [editingAction, setEditingAction] = useState<EditingActionInfo | null>(null);
 
     // --- FONCTION POUR ALLER CHERCHER LES DONNÉES ---
     const fetchRituals = async () => {
@@ -158,6 +168,30 @@ function SettingsPage() {
         }
     };
 
+    // --- NOUVELLE FONCTION : handleSaveAction ---
+    const handleSaveAction = async (updatedAction: Action) => {
+        if (!editingAction) return;
+
+        const { ritualId, actionIndex } = editingAction;
+        const ritualToUpdate = rituals.find(r => r.id === ritualId);
+        if (!ritualToUpdate) return;
+
+        const updatedActions = [...ritualToUpdate.actions];
+        updatedActions[actionIndex] = updatedAction;
+        
+        const { error } = await supabase
+            .from('rituals')
+            .update({ actions: updatedActions })
+            .eq('id', ritualId);
+
+        if (error) {
+            alert('Error updating action: ' + error.message);
+        } else {
+            setEditingAction(null);
+            fetchRituals();
+        }
+    };
+
     if (loading) {
         return <div className="dashboard-page"><p>Loading settings...</p></div>;
     }
@@ -276,7 +310,13 @@ function SettingsPage() {
                                                         <span>{action.target}</span>
                                                     </div>
                                                     <div className="action-controls">
-                                                        <button className="button-icon" title="Edit Action" disabled>Edit</button>
+                                                        <button 
+                                                            onClick={() => setEditingAction({ ritualId: ritual.id, actionIndex: index, action: action })}
+                                                            className="button-icon" 
+                                                            title="Edit Action"
+                                                        >
+                                                            Edit
+                                                        </button>
                                                         <button 
                                                             onClick={() => handleDeleteAction(ritual.id, index)} 
                                                             className="button-icon" 
@@ -296,7 +336,7 @@ function SettingsPage() {
                 </div>
             </div>
 
-            {/* --- AFFICHAGE DE LA MODALE --- */}
+            {/* --- AFFICHAGE DE LA MODALE RITUAL --- */}
             {editingRitual && (
                 <EditRitualModal
                     ritualToEdit={editingRitual}
@@ -305,6 +345,15 @@ function SettingsPage() {
                         setEditingRitual(null);
                         fetchRituals();
                     }}
+                />
+            )}
+
+            {/* --- AFFICHAGE DE LA MODALE ACTION --- */}
+            {editingAction && (
+                <EditActionModal 
+                    actionToEdit={editingAction.action}
+                    onClose={() => setEditingAction(null)}
+                    onSave={handleSaveAction}
                 />
             )}
         </div>
