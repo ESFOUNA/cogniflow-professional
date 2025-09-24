@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import EditRitualModal from '../components/EditRitualModal';
 import EditActionModal from '../components/EditActionModal'; // Import the new modal
+import { ask } from '@tauri-apps/api/dialog';
 import './SettingsPage.css';
 
 // --- TYPES ---
@@ -91,11 +92,17 @@ function SettingsPage() {
     };
 
     const handleDeleteRitual = async (ritualId: number) => {
-        if (window.confirm('Are you sure you want to delete this ritual?')) {
+        const confirmed = await ask(
+            'Are you sure you want to delete this ritual? This action cannot be undone.', 
+            { title: 'Confirm Deletion', type: 'warning' }
+        );
+    
+        if (confirmed) {
             const { error } = await supabase
                 .from('rituals')
                 .delete()
                 .eq('id', ritualId);
+            
             if (error) {
                 alert('Error deleting ritual: ' + error.message);
             } else {
@@ -141,30 +148,27 @@ function SettingsPage() {
 
     // --- NOUVELLE FONCTION : handleDeleteAction ---
     const handleDeleteAction = async (ritualId: number, actionIndex: number) => {
-        // 1. Demander confirmation
-        if (!window.confirm('Are you sure you want to delete this action?')) {
-            return;
-        }
-
-        // 2. Trouver le rituel concerné
-        const ritualToUpdate = rituals.find(r => r.id === ritualId);
-        if (!ritualToUpdate) return;
-
-        // 3. Créer une nouvelle liste d'actions en filtrant celle à supprimer
-        // La méthode filter() crée un nouveau tableau avec tous les éléments qui passent le test.
-        const updatedActions = ritualToUpdate.actions.filter((_, index) => index !== actionIndex);
-
-        // 4. Envoyer la mise à jour à Supabase
-        const { error } = await supabase
-            .from('rituals')
-            .update({ actions: updatedActions })
-            .eq('id', ritualId);
-
-        if (error) {
-            alert('Error deleting action: ' + error.message);
-        } else {
-            // 5. Succès ! On rafraîchit la liste
-            fetchRituals();
+        const confirmed = await ask(
+            'Are you sure you want to delete this action?', 
+            { title: 'Confirm Action Deletion', type: 'warning' }
+        );
+    
+        if (confirmed) {
+            const ritualToUpdate = rituals.find(r => r.id === ritualId);
+            if (!ritualToUpdate) return;
+    
+            const updatedActions = ritualToUpdate.actions.filter((_, index) => index !== actionIndex);
+    
+            const { error } = await supabase
+                .from('rituals')
+                .update({ actions: updatedActions })
+                .eq('id', ritualId);
+            
+            if (error) {
+                alert('Error deleting action: ' + error.message);
+            } else {
+                fetchRituals();
+            }
         }
     };
 
