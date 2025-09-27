@@ -1,9 +1,8 @@
 // src/components/EditRitualModal.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import './EditRitualModal.css';
 
-// On définit le type pour un Rituel, comme dans SettingsPage
 type Ritual = {
     id: number;
     name: string;
@@ -11,7 +10,6 @@ type Ritual = {
     actions: { type: string, target: string }[];
 };
 
-// On définit les "props" que notre modale va recevoir
 type EditRitualModalProps = {
     ritualToEdit: Ritual;
     onClose: () => void;
@@ -19,14 +17,23 @@ type EditRitualModalProps = {
 };
 
 function EditRitualModal({ ritualToEdit, onClose, onSave }: EditRitualModalProps) {
-    // États pour les champs du formulaire, initialisés avec les valeurs du rituel
     const [name, setName] = useState(ritualToEdit.name);
     const [description, setDescription] = useState(ritualToEdit.description || '');
 
     const handleSave = async () => {
+        // ON AJOUTE LA VALIDATION ICI
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+            alert("Ritual name cannot be empty.");
+            return; // On arrête l'exécution, la modale reste ouverte.
+        }
+
         const { error } = await supabase
             .from('rituals')
-            .update({ name: name, description: description || null })
+            .update({ 
+                name: trimmedName, // On sauvegarde la version sans espaces
+                description: description.trim() || null 
+            })
             .eq('id', ritualToEdit.id);
 
         if (error) {
