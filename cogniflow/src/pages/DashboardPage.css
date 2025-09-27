@@ -55,3 +55,7 @@
     color: #8A8A93;
     font-size: 0.9rem;
   }
+
+  .session-duration-selector {
+    color: var(--text-primary);
+}

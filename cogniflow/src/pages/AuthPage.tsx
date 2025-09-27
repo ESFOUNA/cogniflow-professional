@@ -1,8 +1,9 @@
 // src/pages/AuthPage.tsx
 
 import { useState } from 'react';
-import './AuthPage.css';
 import { supabase } from '../lib/supabaseClient';
+import { GoogleIcon } from '../components/GoogleIcon';
+import './AuthPage.css';
 
 type AuthView = 'signIn' | 'signUp';
 
@@ -25,7 +26,7 @@ function AuthPage() {
     setPassword('');
   };
 
-  const handleSignUp = async (event: React.MouseEvent) => {
+  const handleSignUp = async (event: React.FormEvent) => { // Changé en FormEvent
     event.preventDefault();
     const { data, error } = await supabase.auth.signUp({
       email: email,
@@ -41,7 +42,7 @@ function AuthPage() {
     }
   };
   
-  const handleSignIn = async (event: React.MouseEvent) => {
+  const handleSignIn = async (event: React.FormEvent) => { // Changé en FormEvent
     event.preventDefault();
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
@@ -74,7 +75,8 @@ function AuthPage() {
 
         {currentView === 'signIn' && (
           <div id="signin-section">
-            <div className="auth-section">
+            {/* NOUVEAU : On entoure le formulaire avec <form> */}
+            <form className="auth-section" onSubmit={handleSignIn}>
               <input 
                 id="signin-email" 
                 type="email" 
@@ -90,14 +92,13 @@ function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button 
-                id="signin-button" 
+                type="submit"
                 className="button button-primary" 
                 style={{ width: '100%' }}
-                onClick={handleSignIn}
               >
                 Sign In
               </button>
-            </div>
+            </form>
             <p className="toggle-auth">
               Don't have an account? <a href="#" onClick={showSignUp}>Sign Up</a>
             </p>
@@ -106,7 +107,8 @@ function AuthPage() {
 
         {currentView === 'signUp' && (
           <div id="signup-section">
-            <div className="auth-section">
+            {/* NOUVEAU : On entoure le formulaire avec <form> */}
+            <form className="auth-section" onSubmit={handleSignUp}>
               <input
                 id="signup-email"
                 type="email"
@@ -122,14 +124,13 @@ function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
-                id="signup-button"
+                type="submit"
                 className="button button-primary"
                 style={{ width: '100%' }}
-                onClick={handleSignUp}
               >
                 Create Account
               </button>
-            </div>
+            </form>
             <p className="toggle-auth">
               Already have an account? <a href="#" onClick={showSignIn}>Sign In</a>
             </p>
@@ -138,14 +139,14 @@ function AuthPage() {
 
         <div className="auth-divider">or</div>
 
-        {/* MISE À JOUR : On connecte notre nouvelle fonction au bouton */}
+        {/* NOUVEAU : On ajoute l'icône au bouton */}
         <button 
           id="signin-google-button" 
           className="button" 
           style={{ width: '100%' }}
           onClick={handleGoogleSignIn}
         >
-          Sign In with Google
+          <GoogleIcon /> Sign In with Google
         </button>
       </div>
     </div>

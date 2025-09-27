@@ -65,7 +65,7 @@ function DashboardPage({ onLaunchRitual, sessionDuration, setSessionDuration }: 
 
             <div className="rituals-container">
                 {rituals.length === 0 ? (
-                    <p style={{color: 'var(--text-primary)'}}>You don't have any rituals yet. Go to Settings to create one!</p>
+                    <p style={{color: 'var(--text-secondary)'}}>You don't have any rituals yet. Go to Settings to create one!</p>
                 ) : (
                     rituals.map((ritual) => (
                         <div key={ritual.id} className="ritual-card" onClick={() => onLaunchRitual(ritual)}>

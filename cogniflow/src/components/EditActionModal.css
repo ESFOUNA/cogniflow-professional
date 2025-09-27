@@ -16,3 +16,11 @@
     display: flex; justify-content: flex-end;
     gap: 12px; margin-top: 20px;
 }
+
+.modal-container .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
