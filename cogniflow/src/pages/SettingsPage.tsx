@@ -68,20 +68,25 @@ function SettingsPage() {
 
     // --- FONCTIONS DE GESTION (HANDLERS) ---
     const handleCreateRitual = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user || !newRitualName.trim()) {
+        // La méthode .trim() enlève les espaces au début et à la fin.
+        const trimmedName = newRitualName.trim();
+    
+        if (!trimmedName) { // Si le nom est vide après avoir enlevé les espaces
             alert('Ritual name cannot be empty.');
             return;
         }
-        // Pas besoin de spécifier 'actions' ici, car la DB lui donnera la valeur par défaut '[]'
+    
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return; // Sécurité supplémentaire
+    
         const { error } = await supabase
             .from('rituals')
             .insert({ 
                 user_id: user.id, 
-                name: newRitualName,
-                description: newRitualDescription || null,
-                actions : []
+                name: trimmedName, // On sauvegarde le nom sans espaces inutiles
+                description: newRitualDescription.trim() || null 
             });
+    
         if (error) {
             alert('Error creating ritual: ' + error.message);
         } else {
