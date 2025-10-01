@@ -1,72 +1,50 @@
-# Nom de notre workflow, il apparaîtra sur GitHub
+# Nom de notre workflow
 name: Test et Validation de CogniFlow
 
-# Déclencheurs : Quand est-ce que ce workflow doit se lancer ?
-on:
-  # À chaque fois qu'on pousse du code sur la branche 'develop'
-  push:
-    branches: [ develop ]
-  # Aussi quand on crée une Pull Request vers 'develop'
-  pull_request:
-    branches: [ develop ]
+# DÉCLENCHEURS : C'est la partie corrigée et garantie
+on: [push, pull_request]
 
-# Les "Jobs" : Les tâches que le robot doit accomplir
+# Les "Jobs" : Le reste ne change pas
 jobs:
-  # On définit un job qu'on appelle 'test-sur-windows'
   test-sur-windows:
-    # On dit au robot d'utiliser une machine virtuelle Windows toute neuve
     runs-on: windows-latest
     
-    # Les étapes du job, exécutées dans l'ordre
     steps:
-      # Étape 1 : Récupérer le code de notre projet
       - name: 1. Récupérer le code
         uses: actions/checkout@v4
       
-      # Étape 2 : Installer Node.js sur la VM
       - name: 2. Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      # Étape 3 : Installer Rust sur la VM
       - name: 3. Installer Rust
         uses: dtolnay/rust-toolchain@stable
       
-      # Étape 4 : Installer les dépendances JavaScript (npm)
       - name: 4. Installer les dépendances (npm)
         run: npm install
       
-      # Étape 5 : Construire l'application en mode "debug" (plus rapide)
       - name: 5. Construire l'application (Build)
         run: npm run tauri build -- --debug
       
-      # Étape 6 : Installer l'application sur la VM pour enregistrer le protocole
       - name: 6. Installer l'application (.msi)
         run: |
-          # Cette commande PowerShell trouve l'installeur .msi et l'exécute silencieusement
           $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
         shell: powershell
       
-      # Étape 7 : Tester le "deep link"
       - name: 7. Tester le Deep Link
         run: |
           Write-Host "--- Début du Test Deep Link ---"
-          # On simule le clic sur un lien, comme le ferait un script
           Start-Process "cogniflow://reset-password?token=test123&type=recovery"
-          # On attend quelques secondes pour laisser le temps à l'app de se lancer
           Start-Sleep -Seconds 5
           
-          # On vérifie si le processus de notre application est bien en cours d'exécution
           $process = Get-Process -Name "cogniflow" -ErrorAction SilentlyContinue
           if ($process) {
             Write-Host "✅ SUCCÈS : Le processus CogniFlow est en cours d'exécution !" -ForegroundColor Green
-            # On arrête le processus pour que le test se termine proprement
             Stop-Process -Name "cogniflow" -Force
           } else {
             Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré." -ForegroundColor Red
-            # On fait échouer le workflow pour être prévenu
             exit 1
           }
         shell: powershell
