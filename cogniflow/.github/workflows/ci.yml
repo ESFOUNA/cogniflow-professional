@@ -1,52 +1,41 @@
-# Nom de notre workflow, il apparaîtra sur GitHub
 name: Test et Validation de CogniFlow
 
-# Déclencheurs : Quand est-ce que ce workflow doit se lancer ?
 on:
-  # On change la règle : on se déclenche quand une Pull Request est
-  # ouverte OU mise à jour (avec un nouveau push), et dont la cible est 'develop'.
+  # On se déclenche sur les Pull Requests qui ciblent la branche 'develop'
   pull_request:
     branches:
       - 'develop'
+  # On se déclenche aussi manuellement si besoin
+  workflow_dispatch:
 
-# Les "Jobs" : Les tâches que le robot doit accomplir
 jobs:
   test-sur-windows:
-    # On dit au robot d'utiliser une machine virtuelle Windows toute neuve
     runs-on: windows-latest
     
-    # Les étapes du job, exécutées dans l'ordre
     steps:
-      # Étape 1 : Récupérer le code de notre projet
       - name: 1. Récupérer le code
         uses: actions/checkout@v4
       
-      # Étape 2 : Installer Node.js sur la VM
       - name: 2. Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      # Étape 3 : Installer Rust sur la VM
       - name: 3. Installer Rust
         uses: dtolnay/rust-toolchain@stable
       
-      # Étape 4 : Installer les dépendances JavaScript (npm)
       - name: 4. Installer les dépendances (npm)
         run: npm install
       
-      # Étape 5 : Construire l'application en mode "debug" (plus rapide)
       - name: 5. Construire l'application (Build)
         run: npm run tauri build -- --debug
       
-      # Étape 6 : Installer l'application sur la VM pour enregistrer le protocole
       - name: 6. Installer l'application (.msi)
         run: |
           $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
         shell: powershell
       
-      # Étape 7 : Tester le "deep link"
       - name: 7. Tester le Deep Link
         run: |
           Write-Host "--- Début du Test Deep Link ---"
