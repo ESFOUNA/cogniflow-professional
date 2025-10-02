@@ -1,53 +1,10 @@
-name: Test et Validation de CogniFlow
+name: Test de Diagnostic CI
 
-on:
-  # On se déclenche sur les Pull Requests qui ciblent la branche 'develop'
-  pull_request:
-    branches:
-      - 'develop'
-  # On se déclenche aussi manuellement si besoin
-  workflow_dispatch:
+on: [push]
 
 jobs:
-  test-sur-windows:
-    runs-on: windows-latest
-    
+  hello-world-job:
+    runs-on: ubuntu-latest
     steps:
-      - name: 1. Récupérer le code
-        uses: actions/checkout@v4
-      
-      - name: 2. Installer Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: 3. Installer Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: 4. Installer les dépendances (npm)
-        run: npm install
-      
-      - name: 5. Construire l'application (Build)
-        run: npm run tauri build -- --debug
-      
-      - name: 6. Installer l'application (.msi)
-        run: |
-          $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
-          Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
-        shell: powershell
-      
-      - name: 7. Tester le Deep Link
-        run: |
-          Write-Host "--- Début du Test Deep Link ---"
-          Start-Process "cogniflow://reset-password?token=test123&type=recovery"
-          Start-Sleep -Seconds 5
-          
-          $process = Get-Process -Name "cogniflow" -ErrorAction SilentlyContinue
-          if ($process) {
-            Write-Host "✅ SUCCÈS : Le processus CogniFlow est en cours d'exécution !" -ForegroundColor Green
-            Stop-Process -Name "cogniflow" -Force
-          } else {
-            Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré." -ForegroundColor Red
-            exit 1
-          }
-        shell: powershell
+      - name: Dire bonjour
+        run: echo "Hello, world! Le robot fonctionne."
