@@ -27,17 +27,26 @@ jobs:
           $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
         shell: powershell
-      - name: 7. Tester le Deep Link
+      - name: 7. Tester le Lancement de l'Application
         run: |
-          Write-Host "--- Début du Test Deep Link ---"
-          Start-Process "cogniflow://reset-password?token=test123&type=recovery"
-          Start-Sleep -Seconds 5
+          Write-Host "--- Début du Test de Lancement ---"
+          # On cherche le chemin de l'exécutable dans le menu Démarrer
+          $startMenuPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\ESFOUNA\cogniflow-professional.lnk"
+          Write-Host "Chemin du raccourci: $startMenuPath"
+
+          # On lance l'application directement via son raccourci
+          Start-Process -FilePath $startMenuPath
+          
+          Write-Host "Attente de 10 secondes pour que l'application se lance..."
+          Start-Sleep -Seconds 10
+          
+          # On cherche le processus
           $process = Get-Process -Name "cogniflow-professional" -ErrorAction SilentlyContinue
           if ($process) {
             Write-Host "✅ SUCCÈS : Le processus CogniFlow est en cours d'exécution !" -ForegroundColor Green
             Stop-Process -Name "cogniflow-professional" -Force
           } else {
-            Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré." -ForegroundColor Red
+            Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré après un lancement direct." -ForegroundColor Red
             exit 1
           }
         shell: powershell
