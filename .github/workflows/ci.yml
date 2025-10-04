@@ -32,10 +32,10 @@ jobs:
           Write-Host "--- Début du Test Deep Link ---"
           Start-Process "cogniflow://reset-password?token=test123&type=recovery"
           Start-Sleep -Seconds 5
-          $process = Get-Process -Name "cogniflow" -ErrorAction SilentlyContinue
+          $process = Get-Process -Name "cogniflow-professional" -ErrorAction SilentlyContinue
           if ($process) {
             Write-Host "✅ SUCCÈS : Le processus CogniFlow est en cours d'exécution !" -ForegroundColor Green
-            Stop-Process -Name "cogniflow" -Force
+            Stop-Process -Name "cogniflow-professional" -Force
           } else {
             Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré." -ForegroundColor Red
             exit 1
