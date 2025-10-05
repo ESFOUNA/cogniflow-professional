@@ -1,16 +1,16 @@
 #![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
 )]
 
 use tauri::Manager;
 
 #[tauri::command]
 fn execute_action(target: String) -> Result<(), String> {
-  match open::that(&target) {
-    Ok(_) => Ok(()),
-    Err(e) => Err(format!("Failed to open: {}. Error: {}", target, e)),
-  }
+    match open::that(&target) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to open: {target}. Error: {e}")),
+    }
 }
 
 fn main() {
@@ -21,7 +21,7 @@ fn main() {
         .setup(|app| {
             // On prépare le plugin avec l'identifiant de notre application
             tauri_plugin_deep_link::prepare(BUNDLE_IDENTIFIER);
-            
+
             let handle = app.handle().clone();
             tauri_plugin_deep_link::register(
                 "cogniflow", // Le nom de notre protocole (ex: cogniflow://)
