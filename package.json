@@ -4,10 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
+  "dev": "vite",
+  "build": "tsc && vite build",
+  "preview": "vite preview",
+  "tauri": "tauri",
+  "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
