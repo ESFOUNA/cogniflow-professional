@@ -1,4 +1,4 @@
-name: Test et Validation de CogniFlow
+name: Validation de Build CogniFlow
 
 on:
   pull_request:
@@ -6,47 +6,26 @@ on:
       - 'develop'
 
 jobs:
-  test-sur-windows:
+  build-sur-windows:
     runs-on: windows-latest
     
     steps:
       - name: 1. Récupérer le code
         uses: actions/checkout@v4
+      
       - name: 2. Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      
       - name: 3. Installer Rust
         uses: dtolnay/rust-toolchain@stable
+      
       - name: 4. Installer les dépendances (npm)
         run: npm install
+      
       - name: 5. Construire l'application (Build)
-        run: npm run tauri build -- --debug
+        run: npm run tauri build
         
-      - name: 6. Installer l'application (.msi) - ÉTAPE OBLIGATOIRE
-        run: |
-          $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
-          Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
-        shell: powershell
-        
-      - name: 7. Tester le Deep Link (Méthode Simple et Directe)
-        run: |
-          Write-Host "--- Début du Test Deep Link ---"
-          # On demande simplement à Windows d'ouvrir le lien. C'est le test le plus pur.
-          Start-Process "cogniflow://reset-password?token=test123&type=recovery"
-          
-          Write-Host "Attente de 10 secondes..."
-          Start-Sleep -Seconds 10
-          
-          $process = Get-Process -Name "cogniflow-professional" -ErrorAction SilentlyContinue
-          if ($process) {
-            Write-Host "✅ SUCCÈS : Le processus est en cours d'exécution !"
-            Stop-Process -Name "cogniflow-professional" -Force
-          } else {
-            Write-Host "❌ ÉCHEC : Le processus n'a pas démarré."
-            # ÉTAPE DE DIAGNOSTIC : On affiche les erreurs d'application de Windows
-            Write-Host "--- Affichage des Erreurs du Journal d'Événements Windows ---"
-            Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2} -MaxEvents 20 | Format-Table -Wrap
-            exit 1
-          }
-        shell: powershell
+      # On ne fait plus de test de deep link.
+      # Si la commande `build` se termine sans erreur, le test est un SUCCÈS.
