@@ -22,31 +22,31 @@ jobs:
         run: npm install
       - name: 5. Construire l'application (Build)
         run: npm run tauri build -- --debug
-      - name: 6. Installer l'application (.msi)
+        
+      - name: 6. Installer l'application (.msi) - ÉTAPE OBLIGATOIRE
         run: |
           $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
         shell: powershell
-      - name: 7. Tester le Lancement de l'Application
+        
+      - name: 7. Tester le Deep Link (Méthode Simple et Directe)
         run: |
-          Write-Host "--- Début du Test de Lancement ---"
-          # On cherche le chemin de l'exécutable dans le menu Démarrer
-          $startMenuPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\ESFOUNA\cogniflow-professional.lnk"
-          Write-Host "Chemin du raccourci: $startMenuPath"
-
-          # On lance l'application directement via son raccourci
-          Start-Process -FilePath $startMenuPath
+          Write-Host "--- Début du Test Deep Link ---"
+          # On demande simplement à Windows d'ouvrir le lien. C'est le test le plus pur.
+          Start-Process "cogniflow://reset-password?token=test123&type=recovery"
           
-          Write-Host "Attente de 10 secondes pour que l'application se lance..."
+          Write-Host "Attente de 10 secondes..."
           Start-Sleep -Seconds 10
           
-          # On cherche le processus
           $process = Get-Process -Name "cogniflow-professional" -ErrorAction SilentlyContinue
           if ($process) {
-            Write-Host "✅ SUCCÈS : Le processus CogniFlow est en cours d'exécution !" -ForegroundColor Green
+            Write-Host "✅ SUCCÈS : Le processus est en cours d'exécution !"
             Stop-Process -Name "cogniflow-professional" -Force
           } else {
-            Write-Host "❌ ÉCHEC : Le processus CogniFlow n'a pas démarré après un lancement direct." -ForegroundColor Red
+            Write-Host "❌ ÉCHEC : Le processus n'a pas démarré."
+            # ÉTAPE DE DIAGNOSTIC : On affiche les erreurs d'application de Windows
+            Write-Host "--- Affichage des Erreurs du Journal d'Événements Windows ---"
+            Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2} -MaxEvents 20 | Format-Table -Wrap
             exit 1
           }
         shell: powershell
