@@ -4,7 +4,6 @@
 )]
 
 use tauri::Manager;
-use open;
 
 #[tauri::command]
 fn execute_action(target: String) -> Result<(), String> {
