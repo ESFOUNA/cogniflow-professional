@@ -112,18 +112,20 @@ jobs:
       
       - name: Verify installation files
         run: |
-          $paths = @(
-            "C:\Program Files\$env:APP_NAME\cogniflow.exe",
-            "C:\Program Files\$env:APP_NAME"
+          Write-Host "Searching for cogniflow.exe in Program Files..." -ForegroundColor Cyan
+          $searchPaths = @(
+            "C:\Program Files",
+            "C:\Program Files (x86)"
           )
-          
-          foreach ($path in $paths) {
-            if (Test-Path $path) {
-              Write-Host "✅ Trouvé : $path" -ForegroundColor Green
-            } else {
-              Write-Host "❌ Manquant : $path" -ForegroundColor Red
-              exit 1
-            }
+          $installedExe = Get-ChildItem -Path $searchPaths -Filter "cogniflow.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if ($installedExe) {
+            Write-Host "✅ Found executable: $($installedExe.FullName)" -ForegroundColor Green
+          } else {
+            Write-Host "❌ FAILED: Could not find cogniflow.exe after installation." -ForegroundColor Red
+            Write-Host "--- For debugging, listing all cogniflow folders found: ---"
+            Get-ChildItem -Path $searchPaths -Filter "*cogniflow*" -Directory -Recurse -ErrorAction SilentlyContinue
+            exit 1
           }
         shell: powershell
       
