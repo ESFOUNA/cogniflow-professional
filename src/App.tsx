@@ -13,6 +13,35 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>('auth');
 
+  // Fonction pour traiter les URLs de deep link
+  const handleDeepLink = (urlString: string) => {
+    try {
+      const url = new URL(urlString);
+      const hashParams = new URLSearchParams(url.hash.substring(1));
+      
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+      
+      if (accessToken && refreshToken) {
+        // Stocker les tokens et définir la session
+        supabase.auth.setSession({ 
+          access_token: accessToken, 
+          refresh_token: refreshToken 
+        }).then(({ data, error }) => {
+          if (!error && data.session) {
+            // Si le type est "recovery", cela signifie que c'est un lien de réinitialisation de mot de passe
+            if (type === 'recovery') {
+              setCurrentView('resetPassword');
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error parsing deep link:', e);
+    }
+  };
+
   useEffect(() => {
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -31,23 +60,29 @@ function App() {
       if (event === 'PASSWORD_RECOVERY') {
         setCurrentView('resetPassword');
       } else if (event === 'SIGNED_IN') {
-        setCurrentView('app');
+        if (session && !session.user.email_confirmed_at) {
+          // Si l'email n'est pas confirmé, rester sur auth
+          setCurrentView('auth');
+        } else {
+          setCurrentView('app');
+        }
       } else if (event === 'SIGNED_OUT') {
         setCurrentView('auth');
       }
     });
 
-    // On écoute l'événement de Rust, qui va déclencher l'événement Supabase ci-dessus
-    const unlisten = listen('deep-link-received', (event) => {
-      const url = new URL(event.payload as string);
-      const hash = new URLSearchParams(url.hash.substring(1));
-      const accessToken = hash.get('access_token');
-      const refreshToken = hash.get('refresh_token');
-
-      if (accessToken && refreshToken) {
-        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-      }
+    // Écouter les deep linksvenus de Rust
+    const unlisten = listen<string>('deep-link-received', (event) => {
+      handleDeepLink(event.payload);
     });
+
+    // Vérifier également l'URL au démarrage de l'application (pour macOS)
+    // Lancer l'analyse des arguments de ligne de commande
+    const checkStartupUrl = async () => {
+      // Sur certaines plateformes, l'URL peut être passée en argument
+      const args = await import('@tauri-apps/api/path');
+      // Cette partie dépend de la plateforme
+    };
 
     return () => {
       subscription?.unsubscribe();
