@@ -72,6 +72,9 @@
     "updater": {
       "active": false
     },
+    "deepLink": {
+      "schemes": ["cogniflow"]
+    },
     "windows": [
       {
         "fullscreen": false,

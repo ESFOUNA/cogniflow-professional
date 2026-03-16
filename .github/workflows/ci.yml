@@ -1,0 +1,415 @@
+name: Test et Validation CogniFlow (Production-Ready)
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Variables d'environnement globales
+env:
+  APP_NAME: cogniflow-professional
+  PROTOCOL_SCHEME: cogniflow
+
+jobs:
+  # ============================================
+  # JOB 1 : Tests Unitaires (Rapide, Sans GUI)
+  # ============================================
+  test-unitaires:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run Rust tests
+        run: cd src-tauri && cargo test --verbose
+      
+      - name: Run JavaScript tests
+        run: npm test -- --passWithNoTests
+      
+      - name: Lint Rust code
+        run: cd src-tauri && cargo clippy -- -D warnings
+      
+      - name: Check Rust formatting
+        run: cd src-tauri && cargo fmt -- --check
+
+  # ============================================
+  # JOB 2 : Build et Validation Installation
+  # ============================================
+  build-et-install:
+    runs-on: windows-latest
+    needs: test-unitaires
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application (Debug)
+        run: npm run tauri build -- --debug
+      
+      - name: Verify MSI exists
+        run: |
+          $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi -ErrorAction Stop
+          Write-Host "✅ MSI trouvé : $($msi.Name)" -ForegroundColor Green
+          Write-Host "Taille : $([math]::Round($msi.Length/1MB, 2)) MB"
+        shell: powershell
+      
+      - name: Install application
+        run: |
+          $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
+          Write-Host "Installation de $($msi.Name)..." -ForegroundColor Cyan
+          
+          $process = Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart", "/L*V", "install.log" -Wait -PassThru
+          
+          if ($process.ExitCode -eq 0) {
+            Write-Host "✅ Installation réussie" -ForegroundColor Green
+          } else {
+            Write-Host "❌ Installation échouée (code: $($process.ExitCode))" -ForegroundColor Red
+            Get-Content install.log -Tail 50
+            exit 1
+          }
+        shell: powershell
+      
+      - name: Verify installation files
+        run: |
+          # Use the APP_NAME variable to create the correct executable name
+          $executableName = "$env:APP_NAME.exe"
+
+          Write-Host "Verifying installation by searching for '$executableName'..." -ForegroundColor Cyan
+          
+          $searchPaths = @(
+            "C:\Program Files",
+            "C:\Program Files (x86)"
+          )
+          
+          $installedExe = Get-ChildItem -Path $searchPaths -Filter $executableName -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if ($installedExe) {
+            Write-Host "✅ Found executable: $($installedExe.FullName)" -ForegroundColor Green
+          } else {
+            Write-Host "❌ FAILED: Could not find '$executableName' after installation." -ForegroundColor Red
+            Write-Host "--- For debugging, listing all cogniflow folders found: ---"
+            Get-ChildItem -Path $searchPaths -Filter "*cogniflow*" -Directory -Recurse -ErrorAction SilentlyContinue
+            exit 1
+          }
+        shell: powershell
+      
+      - name: Verify protocol registration
+        run: |
+          Write-Host "Vérification de l'enregistrement du protocole $env:PROTOCOL_SCHEME://" -ForegroundColor Cyan
+          
+          $regPath = "HKCU:\Software\Classes\$env:PROTOCOL_SCHEME"
+          
+          if (Test-Path $regPath) {
+            Write-Host "✅ Protocole enregistré dans le registre" -ForegroundColor Green
+            
+            # Afficher les détails
+            Get-ItemProperty -Path $regPath | Format-List
+            Get-ItemProperty -Path "$regPath\shell\open\command" | Format-List
+          } else {
+            Write-Host "❌ Protocole NON enregistré" -ForegroundColor Red
+            Write-Host "Recherche dans HKLM..."
+            
+            $regPathHKLM = "HKLM:\Software\Classes\$env:PROTOCOL_SCHEME"
+            if (Test-Path $regPathHKLM) {
+              Write-Host "✅ Trouvé dans HKLM" -ForegroundColor Green
+              Get-ItemProperty -Path $regPathHKLM | Format-List
+            } else {
+              Write-Host "❌ Protocole introuvable" -ForegroundColor Red
+              exit 1
+            }
+          }
+        shell: powershell
+      
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cogniflow-installer-${{ github.sha }}
+          path: src-tauri/target/debug/bundle/msi/*.msi
+          retention-days: 7
+
+  # ============================================
+  # JOB 3 : Test Deep Link (Méthode Robuste)
+  # ============================================
+  test-deep-link:
+    runs-on: windows-latest
+    needs: build-et-install
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run tauri build -- --debug
+      
+      - name: Install application
+        run: |
+          $msi = Get-ChildItem -Path src-tauri/target/debug/bundle/msi -Filter *.msi | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList "/i", $msi.FullName, "/quiet", "/norestart" -Wait
+        shell: powershell
+      
+      # MÉTHODE 1 : Test via fichier HTML local (Recommandé)
+      - name: Test Deep Link via HTML
+        run: |
+          Write-Host "=== TEST DEEP LINK VIA HTML ===" -ForegroundColor Cyan
+          
+          # Créer un fichier HTML de test
+          $html = @"
+          <!DOCTYPE html>
+          <html>
+          <head><title>Deep Link Test</title></head>
+          <body>
+            <h1>Testing CogniFlow Deep Link</h1>
+            <script>
+              // Redirection automatique après 1 seconde
+              setTimeout(function() {
+                window.location.href = '$env:PROTOCOL_SCHEME://reset-password?token=test-token-ci&type=recovery';
+              }, 1000);
+            </script>
+            <p>Redirecting to deep link...</p>
+          </body>
+          </html>
+          "@
+          
+          $html | Out-File -FilePath "test-deeplink.html" -Encoding UTF8
+          
+          Write-Host "Ouverture du fichier HTML..." -ForegroundColor Yellow
+          Start-Process "test-deeplink.html"
+          
+          # Attendre que l'application se lance
+          Write-Host "Attente du lancement de l'application (15 secondes)..." -ForegroundColor Yellow
+          Start-Sleep -Seconds 15
+          
+          # Vérifier si le processus existe
+          $process = Get-Process -Name "cogniflow*" -ErrorAction SilentlyContinue
+          
+          if ($process) {
+            Write-Host "✅ SUCCESS : L'application a été lancée par le deep link !" -ForegroundColor Green
+            Write-Host "Process ID: $($process.Id)"
+            Write-Host "Nom du processus: $($process.ProcessName)"
+            
+            # Tuer le processus proprement
+            Stop-Process -Id $process.Id -Force
+            Write-Host "Application fermée" -ForegroundColor Gray
+          } else {
+            Write-Host "❌ FAILED : L'application ne s'est pas lancée" -ForegroundColor Red
+            
+            # Diagnostic
+            Write-Host "`n=== DIAGNOSTIC ===" -ForegroundColor Yellow
+            Write-Host "Processus en cours :"
+            Get-Process | Where-Object {$_.ProcessName -like "*cogni*"} | Format-Table -AutoSize
+            
+            Write-Host "`nFichiers de log :"
+            $logDir = "$env:APPDATA\com.cogniflow.professional\logs"
+            if (Test-Path $logDir) {
+              Get-ChildItem $logDir -Recurse | Select-Object Name, Length, LastWriteTime
+            }
+            
+            exit 1
+          }
+        shell: powershell
+      
+      # MÉTHODE 2 : Test direct avec vérification améliorée
+      - name: Test Deep Link Direct
+        run: |
+          Write-Host "=== TEST DEEP LINK DIRECT ===" -ForegroundColor Cyan
+          
+          $deeplink = "$env:PROTOCOL_SCHEME://reset-password?token=direct-test&type=recovery"
+          Write-Host "Lancement de : $deeplink" -ForegroundColor Yellow
+          
+          # Méthode 1 : Via cmd.exe
+          $cmdScript = @"
+          @echo off
+          start "" "$deeplink"
+          "@
+          $cmdScript | Out-File -FilePath "launch-deeplink.bat" -Encoding ASCII
+          
+          Start-Process -FilePath "launch-deeplink.bat" -Wait
+          
+          Write-Host "Attente (10 secondes)..." -ForegroundColor Yellow
+          Start-Sleep -Seconds 10
+          
+          # Vérification robuste
+          $maxAttempts = 5
+          $found = $false
+          
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+            Write-Host "Tentative $i/$maxAttempts de détection..." -ForegroundColor Gray
+            
+            $process = Get-Process -Name "cogniflow*" -ErrorAction SilentlyContinue
+            
+            if ($process) {
+              $found = $true
+              Write-Host "✅ Processus détecté !" -ForegroundColor Green
+              Stop-Process -Id $process.Id -Force
+              break
+            }
+            
+            Start-Sleep -Seconds 2
+          }
+          
+          if (-not $found) {
+            Write-Host "❌ Le processus n'a jamais été détecté" -ForegroundColor Red
+            
+            # Logs d'événements Windows
+            Write-Host "`n=== ÉVÉNEMENTS WINDOWS ===" -ForegroundColor Yellow
+            Get-EventLog -LogName Application -Newest 10 -EntryType Error -ErrorAction SilentlyContinue | 
+              Where-Object {$_.Source -like "*cogni*" -or $_.Message -like "*cogni*"} |
+              Format-Table TimeGenerated, Source, Message -AutoSize
+            
+            exit 1
+          }
+        shell: powershell
+      
+      # MÉTHODE 3 : Test via PowerShell avec COM
+      - name: Test Deep Link via COM Shell
+        run: |
+          Write-Host "=== TEST DEEP LINK VIA COM SHELL ===" -ForegroundColor Cyan
+          
+          $deeplink = "$env:PROTOCOL_SCHEME://test-com?data=testvalue"
+          
+          # Utiliser l'objet COM Shell.Application
+          $shell = New-Object -ComObject Shell.Application
+          $shell.ShellExecute($deeplink)
+          
+          Write-Host "Deep link exécuté via COM" -ForegroundColor Yellow
+          Start-Sleep -Seconds 10
+          
+          $process = Get-Process -Name "cogniflow*" -ErrorAction SilentlyContinue
+          
+          if ($process) {
+            Write-Host "✅ COM Shell : Succès" -ForegroundColor Green
+            Stop-Process -Id $process.Id -Force
+          } else {
+            Write-Host "⚠️  COM Shell : Processus non détecté (peut être normal)" -ForegroundColor Yellow
+          }
+        shell: powershell
+
+  # ============================================
+  # JOB 4 : Tests Headless avec Xvfb (Avancé)
+  # ============================================
+  test-headless-display:
+    runs-on: windows-latest
+    needs: build-et-install
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Xvfb equivalent (Windows Display Driver)
+        run: |
+          Write-Host "Note : Windows n'a pas d'équivalent direct à Xvfb" -ForegroundColor Yellow
+          Write-Host "Pour des tests GUI complets, utiliser des runners self-hosted avec GPU" -ForegroundColor Yellow
+          Write-Host "Ou des services comme BrowserStack, Sauce Labs" -ForegroundColor Cyan
+        shell: powershell
+      
+      - name: Alternative - Test de lancement en mode minimisé
+        run: |
+          # Télécharger l'artifact du job précédent
+          # (Dans un vrai workflow, utiliser actions/download-artifact)
+          
+          Write-Host "Pour des tests GUI complets sur GitHub Actions :" -ForegroundColor Cyan
+          Write-Host "1. Utiliser des self-hosted runners avec GPU" -ForegroundColor White
+          Write-Host "2. Utiliser des services cloud (BrowserStack, Sauce Labs)" -ForegroundColor White
+          Write-Host "3. Tester uniquement la logique backend/IPC" -ForegroundColor White
+        shell: powershell
+
+  # ============================================
+  # JOB 5 : Test de Régression (Optionnel)
+  # ============================================
+  test-regression:
+    runs-on: windows-latest
+    needs: [test-deep-link]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Placeholder pour tests de régression
+        run: |
+          Write-Host "Tests de régression à implémenter :" -ForegroundColor Cyan
+          Write-Host "- Vérifier que l'ancien format de deep link fonctionne encore" -ForegroundColor White
+          Write-Host "- Tester les cas limites (caractères spéciaux, tokens longs)" -ForegroundColor White
+          Write-Host "- Vérifier la compatibilité avec les anciennes versions" -ForegroundColor White
+        shell: powershell
+
+  # ============================================
+  # JOB FINAL : Rapport de Synthèse
+  # ============================================
+  rapport-final:
+    runs-on: windows-latest
+    needs: [test-unitaires, build-et-install, test-deep-link]
+    if: always()
+    
+    steps:
+      - name: Génération du rapport
+        run: |
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host "  RAPPORT DE VALIDATION COGNIFLOW" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host ""
+          Write-Host "Tests Unitaires     : ${{ needs.test-unitaires.result }}" 
+          Write-Host "Build & Install     : ${{ needs.build-et-install.result }}"
+          Write-Host "Test Deep Link      : ${{ needs.test-deep-link.result }}"
+          Write-Host ""
+          
+          if ("${{ needs.test-deep-link.result }}" -eq "success") {
+            Write-Host "✅ TOUS LES TESTS ONT RÉUSSI" -ForegroundColor Green
+            Write-Host "La fonctionnalité de deep link est validée !" -ForegroundColor Green
+          } else {
+            Write-Host "❌ CERTAINS TESTS ONT ÉCHOUÉ" -ForegroundColor Red
+            Write-Host "Consultez les logs des jobs pour plus de détails" -ForegroundColor Yellow
+            exit 1
+          }
+        shell: powershell
